@@ -1,50 +1,74 @@
-# -*- coding: utf-8 -*-
-
-import sys
-
-import os
-import requests
-import time
-
+import logging
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from decouple import config
+import os
+PORT = int(os.environ.get('PORT', '8443'))
 
-API_KEY = config('annaApi')
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 
-def welcome_msg(item):
-  chat_id = item["message"]["chat"]["id"]
-  user_id = item["message"]["new_chat_member"]["id"]
-  user_name = item["message"]["new_chat_member"].get("username", user_id)
+TOKEN = config('annaApi')
 
-  welcome_msg = ''' <a href="tg://user?id={}">@{}</a>, bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴  ! '''.format(user_id, user_name)
+# Define a few command handlers. These usually take the two arguments update and
+# context. Error handlers also receive the raised TelegramError object in error.
+def new_member(update, context):
+    print(update.message.new_chat_members)
+    for member in update.message.new_chat_members:
+        if not member.username:
+            if not member.first_name:
+                if not member.last_name:
+                     update.message.reply_text('Bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴!')
+                else: 
+                     update.message.reply_text(f'{member.last_name}'+ ', bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴!')
+            else:
+                update.message.reply_text(f'{member.first_name}'+ ', bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴!')
+        else:
+            if not member.first_name:
+                if not member.last_name:
+                    update.message.reply_text(f'@{member.username}'+ ', bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴!')
+                else:
+                    update.message.reply_text(f'{member.last_name}'+f'(@{member.username})'+ ', bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴!')
+            else:
+                update.message.reply_text(f'{member.first_name}'+' '+f'{member.last_name}'+f'(@{member.username})'+ ', bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴!')
+        
 
-  to_url = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&parse_mode=HTML'.format(API_KEY, chat_id, welcome_msg)
-  resp = requests.get(to_url)
 
-import datetime
+def error(update, context):
+    """Log Errors caused by Updates."""
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
 
-endTime = datetime.datetime.now() + datetime.timedelta(minutes=3)
 
-base_url = 'https://api.telegram.org/bot{}/getUpdates'.format(API_KEY)
-resp = requests.get(base_url)
-data = resp.json()
-for item in data["result"]:
-  old_id = item["update_id"]
 
-while endTime > datetime.datetime.now():
-  time.sleep(1)
-  base_url = 'https://api.telegram.org/bot{}/getUpdates'.format(API_KEY)
-  resp = requests.get(base_url)
-  data = resp.json()
+def main():
+    """Start the bot."""
+    # Create the Updater and pass it your bot's token.
+    # Make sure to set use_context=True to use the new context based callbacks
+    # Post version 12 this will no longer be necessary
+    updater = Updater(TOKEN, use_context=True)
 
-  for item in data["result"]:
-    new_id = item["update_id"]
-    if old_id < new_id:
-      old_id = item["update_id"]
-      try:
-        if "new_chat_member" in item["message"]:
-          welcome_msg(item)
-          print(new_id)
-      except:
-        pass
+    # Get the dispatcher to register handlers
+    dp = updater.dispatcher
 
+    # welcome the new users
+
+    dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, new_member))
+    # log all errors
+    dp.add_error_handler(error)
+
+    # Start the Bot
+    updater.start_webhook(listen="0.0.0.0",
+                          port=PORT,
+                          url_path=TOKEN,
+                          webhook_url="https://anna-bot-v1-welcome.herokuapp.com/" + TOKEN)
+
+    # Run the bot until you press Ctrl-C or the process receives SIGINT,
+    # SIGTERM or SIGABRT. This should be used most of the time, since
+    # start_polling() is non-blocking and will stop the bot gracefully.
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
