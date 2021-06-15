@@ -1,9 +1,14 @@
+# -*- coding: utf-8 -*-
+
+import sys
+
 import os
 import requests
 import time
 
-API_KEY = os.environ['annaApi']
+from decouple import config
 
+API_KEY = config('annaApi')
 
 
 def welcome_msg(item):
@@ -11,7 +16,7 @@ def welcome_msg(item):
   user_id = item["message"]["new_chat_member"]["id"]
   user_name = item["message"]["new_chat_member"].get("username", user_id)
 
-  welcome_msg = ''' <a href="tg://user?id={}">@{}</a>, bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴! '''.format(user_id, user_name)
+  welcome_msg = ''' <a href="tg://user?id={}">@{}</a>, bine ai venit pe grupul Forza Horizon 5 Romania 🇷🇴  ! '''.format(user_id, user_name)
 
   to_url = 'https://api.telegram.org/bot{}/sendMessage?chat_id={}&text={}&parse_mode=HTML'.format(API_KEY, chat_id, welcome_msg)
   resp = requests.get(to_url)
